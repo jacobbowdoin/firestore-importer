@@ -1,0 +1,28 @@
+{
+    "name": "firestore-importer",
+    "version": "1.0.0",
+    "description": "Converts original format Talking Dictionary data into PWA format",
+    "main": "index.js",
+    "scripts": {
+        "test": "echo \"Error: no test specified\" && exit 1"
+    },
+    "keywords": [
+        "firestore",
+        "import"
+    ],
+    "author": "Jacob Bowdoin",
+    "license": "ISC",
+    "devDependencies": {
+        "@types/fs-extra": "^5.0.4",
+        "@types/node": "^10.12.2",
+        "typescript": "^3.1.6"
+    },
+    "dependencies": {
+        "commander": "^2.19.0",
+        "firebase-admin": "^6.1.0",
+        "fs-extra": "^7.0.0"
+    },
+    "bin": {
+        "firestore-import": "dist/index.js"
+    }
+}
