@@ -9,4 +9,5 @@ Run `tsc`
 
 ### Example of how to run script
 Run `firestore-import --src file.json --collection dictionaries/id/words --environment prod`
+Run `firestore-import -s v1-data/chamacoco_export.json --collection dictionaries/id/words --environment prod`
 It defaults to dev environment if prod not mentioned (environment is an optional argument). See https://github.com/tj/commander.js/ for help with required and optional arguments.
