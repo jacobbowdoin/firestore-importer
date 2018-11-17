@@ -21,7 +21,8 @@
         "@google-cloud/storage": "^1.7.0",
         "commander": "^2.19.0",
         "firebase-admin": "^6.1.0",
-        "fs-extra": "^7.0.0"
+        "fs-extra": "^7.0.0",
+        "uuidv4": "^2.0.0"
     },
     "bin": {
         "firestore-import": "dist/index.js"
