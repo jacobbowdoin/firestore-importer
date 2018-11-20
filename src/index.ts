@@ -52,8 +52,7 @@ async function importToFirestore() {
             data[i].ph = data[i].ipa || '';
             delete data[i].ipa;
 
-            // TODO: convert old parts of speech to new abbreviations
-            data[i].ps = data[i].pos || '';
+            data[i].ps = abbreviatePOS(data[i].pos || '');
             delete data[i].pos;
 
             data[i].di = data[i].dialect || '';
@@ -140,6 +139,37 @@ const uploadAudioFile = (audioFileName, lexeme, entryId) => {
         })
             .catch((err) => { reject(err) });
     })
+}
+
+function abbreviatePOS(partOfSpeech) {
+    const chamococoConversionArray = [
+        ['', ''],
+        ['noun', 'n'],
+        ['verb', 'v'],
+        ['adjective', 'adj'],
+        ['pronoun', 'pro'],
+        ['preposition', 'prep'],
+        ['interjection', 'int'],
+        ['adverbial', 'adv'],
+        ['plural noun', 'n pl'],
+        ['phrase', 'phr'],
+        ['sentence', 'sent'],
+        ['proper noun', 'pr'],
+        ['noun phrase', 'np'],
+        ['̃phrase', 'phr'],
+        ['pl. pronoun', 'pl pro'],
+        ['question', 'q'],
+        ['gerund', 'ger'],
+        ['article', 'art'],
+        ['possessive', 'poss']
+    ];
+
+    const abbreviatedPOS = chamococoConversionArray.filter(set => set[0] === partOfSpeech);
+    if (abbreviatedPOS.length) {
+        return abbreviatedPOS[0][1];
+    } else {
+        return '';
+    }
 }
 
 importToFirestore();
