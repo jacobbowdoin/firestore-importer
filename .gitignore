@@ -1,5 +1,5 @@
 /dist
 /service-accounts/**
 /node_modules
-/v1-data
-/v1-audio
+/v1**
+/src/getImageServingUrl.ts

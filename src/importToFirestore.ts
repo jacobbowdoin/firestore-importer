@@ -5,14 +5,18 @@ import * as admin from 'firebase-admin';
 import * as fs from 'fs-extra';
 import { join } from 'path';
 const UUID = require('uuidv4');
+import { getImageServingUrl } from './getImageServingUrl';
+import { abbreviatePOS } from './abbreviatePOS';
 
 args
     .version("0.0.1")
-    .option("-s, --src <path>", "Source file path")
+    .option("-d, --data <file path>", "Data file path")
+    .option("-a, --audio <folder path>", "Audio folder path")
+    .option("-p, --photos [folder path]", "Photos folder path") //optional argument indicated by square brackets, skip image import if not specified
     // .option("-c, --collection <path>", "Collection path in firestore")
-    .option("-d, --dictionaryId <dictionaryId>", "Dictionary Id in firestore")
+    .option("-i, --dictionaryId <dictionaryId>", "Dictionary Id in firestore")
     .option("-n, --dictionaryName <dictionaryName>", "Dictionary name, used in saving media files")
-    .option("-e, --environment [dev/prod]", "Firebase Project")
+    .option("-e, --environment [dev/prod]", "Firebase Project") //optional argument, script uses dev if not specified
     .parse(process.argv);
 
 const devServiceAccount = require("../service-accounts/talking-dictionaries-dev-firebase-adminsdk-ab6j5-bd33a6e68f.json");
@@ -24,10 +28,12 @@ admin.initializeApp({
 });
 const db = admin.firestore();
 
+const fileBucket = `talking-dictionaries-${args.environment == 'prod' ? 'alpha' : 'dev'}.appspot.com`
+
 async function importToFirestore() {
     try {
         const colPath = `dictionaries/${args.dictionaryId}/words`;
-        const file = args.src;
+        const file = args.data;
 
         const colRef = db.collection(colPath);
         const batch = db.batch();
@@ -37,6 +43,7 @@ async function importToFirestore() {
             data = await fs.readJSON(file);
         }
 
+        // TODO get script to loop through sets of 500 automatically once it matures
         const commitRound = 0; // start at 0
         const batchStart = 0 + (500 * commitRound);
         const batchEnd = 499 + (500 * commitRound);
@@ -46,58 +53,71 @@ async function importToFirestore() {
             // See https://github.com/firebase/firebase-admin-java/issues/106 for a possible automated chunking solution
             if ((i < batchStart) || (i > batchEnd)) { continue; };
 
-            data[i].lx = data[i].lang || '';
-            delete data[i].lang
+            let entry = data[i];
+            // console.log(entry);
+            entry.lx = entry.lang || '';
+            delete entry.lang
+            entry.ph = entry.ipa || '';
+            delete entry.ipa;
 
-            data[i].ph = data[i].ipa || '';
-            delete data[i].ipa;
+            entry.ps = abbreviatePOS(entry.pos || '');
+            delete entry.pos;
 
-            data[i].ps = abbreviatePOS(data[i].pos || '');
-            delete data[i].pos;
+            entry.di = entry.dialect || '';
+            delete entry.dialect;
 
-            data[i].di = data[i].dialect || '';
-            delete data[i].dialect;
+            entry.xv = entry.usage_example || '';
+            delete entry.usage_example;
 
-            data[i].xv = data[i].usage_example || '';
-            delete data[i].usage_example;
-
-            data[i].lc = data[i].metadata || ''; // location
-            delete data[i].metadata;
+            entry.lc = entry.metadata || ''; // location
+            delete entry.metadata;
 
             // learn about try/catch so I can convert this to const uploadedAudioPath = await upload...()
             // maybe the outer parent catch will even catch this? Test it out.
 
             const entryId = colRef.doc().id;
 
-            await uploadAudioFile(data[i].audio, data[i].lx, entryId)
+            await uploadAudioFile(entry.audio, entry.lx, entryId)
                 .then((response: any) => {
-                    const dateArray = data[i].audio.match(/([0-9]*)_([0-9]*)_([0-9]*)/);
-                    data[i].sf = {
-                        cr: data[i].authority || '', // speaker
+                    const dateArray = entry.audio.match(/([0-9]*)_([0-9]*)_([0-9]*)/);
+                    entry.sf = {
+                        cr: entry.authority || '', // speaker
                         ts: dateArray ? new Date(`${dateArray[1]}, ${dateArray[2]}, ${dateArray[3]}`) : null,
                         path: response.uploadedAudioPath,
-                        mt: response.uuid,
+                        mt: response.uuid, // Media Token for public access
                     };
-                    delete data[i].authority;
-                    delete data[i].audio;
+                    delete entry.audio;
                 })
                 .catch((err) => console.log(err));
 
-            delete data[i].image;
-
-            data[i].sd = data[i].semantic_ids || '';
-            delete data[i].semantic_ids;
-
-            data[i].gl = {
-                English: data[i].gloss || '',
-                Español: data[i].es_gloss || '',
+            if (args.photos) {
+                await uploadImageFile(entry, entryId)
+                    .then((response) => {
+                        entry.pf = response;
+                        delete entry.image
+                    })
+                    .catch((err) => console.log(err));
+            } else {
+                entry.pf = null;
+                delete entry.image;
             }
-            delete data[i].gloss;
-            delete data[i].es_gloss;
+
+            delete entry.authority;
+
+            entry.sd = entry.semantic_ids || '';
+            delete entry.semantic_ids;
+
+            entry.gl = {
+                English: entry.gloss || '',
+                Español: entry.es_gloss || '',
+            }
+            delete entry.gloss;
+            delete entry.es_gloss;
 
             const docRef = colRef.doc(entryId);
-            batch.set(docRef, data[i]);
-            console.log(`Added ${i} to batch: ${data[i].lx}`);
+            batch.set(docRef, entry);
+            console.log(`Added ${i} to batch: ${entry.lx}`);
+            break;
         }
 
         await batch.commit();
@@ -114,10 +134,7 @@ const uploadAudioFile = (audioFileName, lexeme, entryId) => {
     return new Promise((resolve, reject) => {
         if (!audioFileName) { reject(`No audio found for ${lexeme}`) };
 
-        const fileBucket = `talking-dictionaries-${args.environment == 'prod' ? 'alpha' : 'dev'}.appspot.com`
-
-        // TODO: add audio location argument or manually write
-        const audioDir = join(__dirname, '../v1-audio');
+        const audioDir = join(__dirname, `../${args.audio}`);
         const audioFilePath = join(audioDir, audioFileName);
 
         const uploadedAudioName = lexeme.replace(/ /g, '_').replace(/\./g, '');
@@ -141,68 +158,40 @@ const uploadAudioFile = (audioFileName, lexeme, entryId) => {
     })
 }
 
-function abbreviatePOS(partOfSpeech) {
-    const chamococoConversionArray = [
-        ['', ''],
-        ['noun', 'n'],
-        ['verb', 'v'],
-        ['adjective', 'adj'],
-        ['pronoun', 'pro'],
-        ['preposition', 'prep'],
-        ['interjection', 'int'],
-        ['adverbial', 'adv'],
-        ['plural noun', 'n pl'],
-        ['phrase', 'phr'],
-        ['sentence', 'sent'],
-        ['proper noun', 'pr'],
-        ['noun phrase', 'np'],
-        ['̃phrase', 'phr'],
-        ['pl. pronoun', 'pl pro'],
-        ['question', 'q'],
-        ['gerund', 'ger'],
-        ['article', 'art'],
-        ['possessive', 'poss']
-    ];
+const uploadImageFile = async (entry, entryId) => {
+    try {
+        const pictureFileName = entry.image;
+        const lexeme = entry.lx;
+        if (!pictureFileName) { throw `No image found for ${lexeme}` };
 
-    const abbreviatedPOS = chamococoConversionArray.filter(set => set[0] === partOfSpeech);
-    if (abbreviatedPOS.length) {
-        return abbreviatedPOS[0][1];
-    } else {
-        return '';
+        const imageDir = join(__dirname, `../${args.photos}`);
+        const imageFilePath = join(imageDir, pictureFileName);
+
+        const uploadedImageName = lexeme.replace(/ /g, '_').replace(/\./g, '');
+        const imageType = pictureFileName.match(/\.[0-9a-z]+$/i);
+
+        const uploadedImagePath = `images/${args.dictionaryName}_${args.dictionaryId}/${uploadedImageName}_${entryId}${imageType}`;
+
+        await gcs.bucket(fileBucket).upload(imageFilePath, {
+            destination: uploadedImagePath
+        })
+
+        const gcsPath = await getImageServingUrl(uploadedImagePath);
+        const dateArray = pictureFileName.match(/([0-9]*)_([0-9]*)_([0-9]*)/);
+        const pf = {
+            cr: entry.authority || '', // speaker
+            ts: dateArray ? new Date(`${dateArray[1]}, ${dateArray[2]}, ${dateArray[3]}`) : null,
+            path: uploadedImagePath,
+            gcs: gcsPath, // Google Cloud Storage Link
+        };
+
+        return pf;
+    } catch (err) {
+        throw err;
     }
 }
 
 importToFirestore();
-
-async function gatherPartsOfSpeech() {
-    const file = args.src;
-    let data;
-    if (file.includes(".json")) {
-        data = await fs.readJSON(file);
-    }
-
-    let partsOfSpeech = [];
-    for (let i = 0; i < data.length; i++) {
-        const pos = data[i].pos;
-
-        if (partsOfSpeech.indexOf(pos) === -1) partsOfSpeech.push(pos);
-    }
-    console.log(partsOfSpeech);
-}
-
-// gatherPartsOfSpeech();
-
-// Audio currently stored as
-// audio/Bahasa_Lani_jaRhn6MAZim4Blvr1iEv/eke_z8830ipzn7vgjbbx_1541390364420.mp3
-// audioUri: gs://talking-dictionaries-alpha.appspot.com/audio/Bahasa_Lani_jaRhn6MAZim4Blvr1iEv/eke_z8830ipzn7vgjbbx_1541390364420.mp3
-
-
-// For learning how to use join()
-// fs.readdir(join(__dirname, '../v1-audio'), function (err, files) {
-//     if (err) return console.error('Unable to read directory contents');
-//     console.log(files.map(f => '\t' + f).join('\n'));
-//     console.log(`Contents of ${join(__dirname, '../v1-audio')}`);
-// });
 
 
 // Media Token Retrieval

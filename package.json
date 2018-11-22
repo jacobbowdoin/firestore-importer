@@ -2,7 +2,7 @@
     "name": "firestore-importer",
     "version": "0.0.1",
     "description": "Converts original format Talking Dictionary data into new web app format",
-    "main": "index.js",
+    "main": "importToFirestore.js",
     "scripts": {
         "test": "echo \"Error: no test specified\" && exit 1"
     },
@@ -19,12 +19,15 @@
     },
     "dependencies": {
         "@google-cloud/storage": "^1.7.0",
+        "@types/node-fetch": "^2.1.4",
         "commander": "^2.19.0",
         "firebase-admin": "^6.1.0",
         "fs-extra": "^7.0.0",
+        "node-fetch": "^2.3.0",
         "uuidv4": "^2.0.0"
     },
     "bin": {
-        "firestore-import": "dist/index.js"
+        "firestore-import": "dist/importToFirestore.js",
+        "gather-pos": "dist/gatherPOS.js"
     }
 }
