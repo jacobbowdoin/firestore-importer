@@ -21,13 +21,14 @@
         "@google-cloud/storage": "^1.7.0",
         "@types/node-fetch": "^2.1.4",
         "commander": "^2.19.0",
+        "fetch-as": "^0.6.0",
         "firebase-admin": "^6.1.0",
         "fs-extra": "^7.0.0",
-        "node-fetch": "^2.3.0",
         "uuidv4": "^2.0.0"
     },
     "bin": {
         "firestore-import": "dist/importToFirestore.js",
-        "gather-pos": "dist/gatherPOS.js"
+        "gather-pos": "dist/gatherPOS.js",
+        "filter-array": "dist/filterArray.js"
     }
 }

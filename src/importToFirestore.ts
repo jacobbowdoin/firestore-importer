@@ -44,17 +44,16 @@ async function importToFirestore() {
         }
 
         // TODO get script to loop through sets of 500 automatically once it matures
+        // Firestore 'cannot write more than 500 entities in a single call' so we have to upload in chunks
+        // See https://github.com/firebase/firebase-admin-java/issues/106 for a possible automated chunking solution
         const commitRound = 0; // start at 0
         const batchStart = 0 + (500 * commitRound);
         const batchEnd = 499 + (500 * commitRound);
 
         for (let i = 0; i < data.length; i++) {
-            // Firestore 'cannot write more than 500 entities in a single call' so we have to upload in chunks
-            // See https://github.com/firebase/firebase-admin-java/issues/106 for a possible automated chunking solution
             if ((i < batchStart) || (i > batchEnd)) { continue; };
 
             let entry = data[i];
-            // console.log(entry);
             entry.lx = entry.lang || '';
             delete entry.lang
             entry.ph = entry.ipa || '';
@@ -117,7 +116,6 @@ async function importToFirestore() {
             const docRef = colRef.doc(entryId);
             batch.set(docRef, entry);
             console.log(`Added ${i} to batch: ${entry.lx}`);
-            break;
         }
 
         await batch.commit();
@@ -176,7 +174,7 @@ const uploadImageFile = async (entry, entryId) => {
             destination: uploadedImagePath
         })
 
-        const gcsPath = await getImageServingUrl(uploadedImagePath);
+        const gcsPath = await getImageServingUrl(uploadedImagePath, args.environment);
         const dateArray = pictureFileName.match(/([0-9]*)_([0-9]*)_([0-9]*)/);
         const pf = {
             cr: entry.authority || '', // speaker
