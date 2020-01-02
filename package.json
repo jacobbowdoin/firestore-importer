@@ -7,7 +7,7 @@
         "firestore-import": "node dist/importToFirestore.js",
         "gather-pos": "node dist/gatherPOS.js",
         "filter-array": "node dist/filterArray.js",
-        "import-old-td": "node lib/importOldTD.js"
+        "import-old-td": "node lib/import-old-td.js"
     },
     "keywords": [
         "firestore",
