@@ -4,9 +4,8 @@ Built with help from https://angularfirebase.com/lessons/import-csv-json-or-exce
 ## Initial setup
 1. Run `npm install`
 2. Compile Typescript into Javscript (see below)
-3. Link needed script commands by running `npm link`
-4. Import needed service account json files into /service-accounts
-5. Place JSON data, audio files, and photos into appropriate folders (/d-data, /d-audio, /d-photos)
+3. Import needed service account json files into /service-accounts
+4. Place JSON data, audio files, and photos into appropriate folders (/d-data, /d-audio, /d-photos)
 
 ### To Compile Typescript files into Javascript after making changes
 Run `tsc` (must have installed Typescript beforehand)
@@ -22,4 +21,4 @@ As an example using abbreviated argument names, to import Chamococo to the dev s
 Or `firestore-import -d d-data/photo_test.json -a d-audio -p d-photos -i kRlFo5AymRG2hYWg4mpY -n Spanish`
 
 ### How to run the script to gather parts of speech
-Run `gather-pos -s <source>`, for example: `gather-pos -s data/chamacoco_export.json`
+Run `npm run gather-pos -s <source>`, for example: `gather-pos -s data/chamacoco_export.json`

@@ -1,13 +1,13 @@
-/dist
-/service-accounts/**
+/lib
+/logs
+/service-accounts
 /node_modules
 /v1**
 /src/getImageServingUrl.ts
 
-/d-audio/**
-/d-data/**
-/d-photos/**
+/dictionary
 
 
 #Experimenting with search
 /src/filterArray.ts
+/old-src
