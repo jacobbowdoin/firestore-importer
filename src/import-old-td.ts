@@ -1,39 +1,41 @@
-// /// <reference types="node" />
-
 import * as fs from 'fs-extra';
-import { db, environment } from './config';
+import { environment } from './config';
 import { unzipArchive } from './unzip';
 import { findUnmatchedPOS } from './find-unmatched-pos';
 import { importToFirebase } from './import-to-firebase';
-import { IDictionary } from './interfaces/dictionary.interface';
 import { findLanguages } from './find-languages';
+import { mockDictionary } from './mock-dictionary';
 
 // wahgi
-const dictionary = 'remo';
-// remo
+const language = process.argv[2];
+// remo - POS?
 // gutob
 // gta
-// apatani
-// ho
-// sora
-// xyzyl
-// yokoim
-// olukumi
-// sakapulteko
-// achi
-// kaqchikel
-// qanjobal
-// tzutujil
-// chalchiteko
-// santali
-// tektiteko
-// ixil
-// kera_mundari (kera-mundari url)
-// kharia
-// qeqchi
-// korku
+// apatani - POS?
+// ho - POS?
+// sora - POS?
+// xyzyl - POS? 
+// yokoim - 'proper name = proper noun?
+// olukumi - English (en), Yoruba (yo), and is "ib" "Igbo"?
+// sakapulteko - ?
+// achi - ?
+// kaqchikel - ?
+// qanjobal - ?
+// tzutujil - ?
+// chalchiteko - ?
+// santali - adposition?
+// tektiteko - ?
+// ixil - ?
+// kera_mundari (kera-mundari url) - adposition? and missing audio file because of question mark
+// kharia - missing two audio files (also not working on old site: http://talkingdictionary.swarthmore.edu/kharia/?fields=all&semantic_ids=&q=bas and http://talkingdictionary.swarthmore.edu/kharia/?fields=all&semantic_ids=&q=pipe)
+// - qeqchi -?
+// - korku
 
-const dictionaryId = `${dictionary}-${Date.now()}`;
+let dictionaryId = language;
+const dateStamp = Date.now();
+if (environment === 'dev') {
+    dictionaryId = dictionaryId + '-' + dateStamp;
+}
 
 const util = require('util');
 const logFile = fs.createWriteStream(`logs/import-${dictionaryId}.txt`, { flags: 'w' }); // 'a' to append, 'w' to write over file contents
@@ -45,35 +47,24 @@ console.log = function () {
 
 const importOldTalkingDictionary = async () => {
     try {
-        console.log(`importing ${dictionary}`);
-        const dataFileName = await unzipArchive(dictionary);
-        const data = await fs.readJSON(`dictionary/${dictionary}/data/${dataFileName}`);
+        console.log(`importing ${dictionaryId}`);
+        const dataFileName = await unzipArchive(language, dictionaryId);
+        let data = await fs.readJSON(`dictionary/${dictionaryId}/data/${dataFileName}`);
+        data = JSON.parse(JSON.stringify(data).replace(/&#8217;/g, '\'').replace(/\\u0000/g, '')); // handle old TD apostrophes
+        // Use .replace(/\\u0000/g, '') to handle odd null values in first 4 entries of ho
         findUnmatchedPOS(data);
-        const glossLanguages: string [] = findLanguages(data);
+        // if (true) { return } // Uncomment to prep import POS/Languages
         if (environment === 'dev') {
+            // dictionaryId = dictionaryId + '-' + dateStamp;
+            const glossLanguages: string[] = findLanguages(data);
             await mockDictionary(dictionaryId, glossLanguages)
         }
-        const importedCount = await importToFirebase(data, dictionaryId);
-        console.log(`Finished importing ${importedCount} entries`);
+        const importedCount = await importToFirebase(data, dictionaryId, environment);
+        console.log(`Finished importing ${importedCount} entries in ${(Date.now() - dateStamp)/1000} seconds`);
         // console.log({newFormatData}); log entries in importToFirebase
     } catch (err) {
         console.error(err);
     }
-}
-
-/**
- * Create new empty dictionary in Firestore
- */
-export const mockDictionary = async (dictionaryId: string, glossLanguages: string[]) => {
-    const dictionaryDoc: IDictionary = {
-        id: dictionaryId,
-        name: `Local: ${dictionaryId}`,
-        public: true,
-        entryCount: 0,
-        glossLanguages //: ['en', 'es', 'hi', 'or'],
-    };
-    await db.doc(`dictionaries/${dictionaryId}`).set(dictionaryDoc);
-    return dictionaryDoc;
 }
 
 importOldTalkingDictionary();

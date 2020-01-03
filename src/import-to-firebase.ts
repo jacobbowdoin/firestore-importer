@@ -1,21 +1,23 @@
-// import { db, storage, timestamp } from './config';
-import { db, timestamp } from './config';
+import { db, timestamp, storage } from './config';
+import * as fs from 'fs-extra';
+
 // import { getImageServingUrl } from './getImageServingUrl';
 import { abbreviateTDPartOfSpeech } from './abbreviate-td-pos';
 import { IEntry } from './interfaces/entry.interface';
+import { getImageServingUrl } from './getImageServingUrl';
 const uid = 'OTD'; // 'Old Talking Dictionaries
 
-export const importToFirebase = async (data: any[], dictionaryId: string) => {
+export const importToFirebase = async (data: any[], dictionaryId: string, environment: string) => {
     try {
         let audioRefCount = 0;
+        let audioMissingCount = 0;
         let imageRefCount = 0;
+        let imageMissingCount = 0;
 
         let entryCount = 0;
         let batchCount = 0;
         let batch = db.batch();
         const colRef = db.collection(`dictionaries/${dictionaryId}/words`);
-
-        data = JSON.parse(JSON.stringify(data).replace(/&#8217;/g, '\'')); // handle old TD apostrophes
 
         for (const row of data) { // learned from https://lavrton.com/javascript-loops-how-to-handle-async-await-6252dd3c795/
             // if (entryCount == 5) { break } // to incrementally test larger and larger imports
@@ -48,11 +50,14 @@ export const importToFirebase = async (data: any[], dictionaryId: string) => {
             Boolean(row.dialect) && (entry.di = row.dialect);
 
             if (row.pos) {
-                const { value, matched } = abbreviateTDPartOfSpeech(row.pos);
-                if (matched) {
-                    entry.ps = value;
+                const { matchedPOS, unMatchedPOS, notes } = abbreviateTDPartOfSpeech(row.pos);
+                if (matchedPOS) {
+                    entry.ps = matchedPOS;
                 } else {
-                    entry.nt = value; // save misc parts of speech into the notes column if they don't match up with our standard POS list
+                    entry.ps = unMatchedPOS; // Still saving unmatched POS into same cell
+                }
+                if (notes) {
+                    entry.nt = notes; // save parenthetical notes
                 }
             }
 
@@ -63,16 +68,49 @@ export const importToFirebase = async (data: any[], dictionaryId: string) => {
                     entry.nt = row.metadata;
                 }
             }
+
             
             if (row.audio) {
                 ++audioRefCount;
+                const localFilePath = `dictionary/${dictionaryId}/audio/${row.audio}`;
+                if (fs.existsSync(localFilePath)) {
+                    const storagePath = `${dictionaryId}/audio/local_import/${sanitizeFileName(row.audio)}`;
+                    await storage.bucket().upload(localFilePath, {
+                        destination: storagePath,
+                    });
+                    entry.sf = {
+                        path: storagePath,
+                        source: `local_import`,
+                        ts: timestamp,
+                    };
+                    Boolean(row.authority) && (entry.sf.speakerName = row.authority);
+                } else {
+                    ++audioMissingCount;
+                    console.log(`>> Missing audio file for ${entry.lx}: ${row.audio}`)
+                }
             }
             
             if (row.image) {
                 ++imageRefCount;
+                const localFilePath = `dictionary/${dictionaryId}/images/${row.image}`;
+                if (fs.existsSync(localFilePath)) {
+                    const storagePath = `${dictionaryId}/images/local_import/${sanitizeFileName(row.audio)}`;
+                    await storage.bucket().upload(localFilePath, {
+                        destination: storagePath,
+                    });
+                    const url = await getImageServingUrl(storagePath, environment)
+                    entry.pf = {
+                        path: storagePath,
+                        gcs: url,
+                        source: `local_import`,
+                        ts: timestamp,
+                    };
+                    Boolean(row.authority) && (entry.sf.speakerName = row.authority);
+                } else {
+                    ++imageMissingCount;
+                    console.log(`>> Missing image file for ${entry.lx}: ${row.image}`)
+                }
             }
-            
-            // row.authority; // add to media later
 
             // add timestamps and creator metadata
             entry.createdAt = timestamp;
@@ -92,7 +130,7 @@ export const importToFirebase = async (data: any[], dictionaryId: string) => {
         };
         await batch.commit();
 
-        console.log(`Converted ${entryCount} entries, and found ${audioRefCount} audio references, and ${imageRefCount} image references`);
+        console.log(`Converted ${entryCount} entries, found ${audioRefCount} audio references (${audioMissingCount} were missing), and ${imageRefCount} image references (${imageMissingCount} were missing)`);
 
         return entryCount;
     } catch (error) {
@@ -100,60 +138,6 @@ export const importToFirebase = async (data: any[], dictionaryId: string) => {
         throw new Error(error);
     }
 }
-
-// const uploadAudioFile = (audioFileName, lexeme, entryId) => {
-//     return new Promise((resolve, reject) => {
-//         if (!audioFileName) { reject(`No audio found for ${lexeme}`) };
-
-//         const audioDir = join(__dirname, `../${args.audio}`);
-//         const audioFilePath = join(audioDir, audioFileName);
-
-//         const uploadedAudioName = lexeme.replace(/ /g, '_').replace(/\./g, '');
-//         const audioType = audioFileName.match(/\.[0-9a-z]+$/i);
-
-//         const uploadedAudioPath = `audio/${args.dictionaryName}_${args.dictionaryId}/${uploadedAudioName}_${entryId}${audioType}`;
-
-//         storage.bucket(fileBucket).upload(audioFilePath, {
-//             destination: uploadedAudioPath,
-//         }).then(() => {
-//             resolve({ uploadedAudioPath });
-//         })
-//             .catch((err) => { reject(err) });
-//     })
-// }
-
-// const uploadImageFile = async (entry, entryId) => {
-//     try {
-//         const pictureFileName = entry.image;
-//         const lexeme = entry.lx;
-//         if (!pictureFileName) { throw `No image found for ${lexeme}` };
-
-//         const imageDir = join(__dirname, `../${args.photos}`);
-//         const imageFilePath = join(imageDir, pictureFileName);
-
-//         const uploadedImageName = lexeme.replace(/ /g, '_').replace(/\./g, '');
-//         const imageType = pictureFileName.match(/\.[0-9a-z]+$/i);
-
-//         const uploadedImagePath = `images/${args.dictionaryName}_${args.dictionaryId}/${uploadedImageName}_${entryId}${imageType}`;
-
-//         await storage.bucket(fileBucket).upload(imageFilePath, {
-//             destination: uploadedImagePath
-//         })
-
-//         const gcsPath = await getImageServingUrl(uploadedImagePath, args.environment);
-//         const dateArray = pictureFileName.match(/([0-9]*)_([0-9]*)_([0-9]*)/);
-//         const pf = {
-//             cr: entry.authority || '', // speaker
-//             ts: dateArray ? new Date(`${dateArray[1]}, ${dateArray[2]}, ${dateArray[3]}`) : null,
-//             path: uploadedImagePath,
-//             gcs: gcsPath, // Google Cloud Storage Link
-//         };
-
-//         return pf;
-//     } catch (err) {
-//         throw err;
-//     }
-// }
 
 /**
  * Santize file name down to basic characters that can be accepted by Google's Serving Url generator

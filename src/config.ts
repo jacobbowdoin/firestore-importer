@@ -10,7 +10,8 @@ const serviceAccount = require("../service-accounts/talking-dictionaries-dev-fir
 
 export const firebase = admin.initializeApp({
     credential: admin.credential.cert(serviceAccount),
-    databaseURL: `https://talking-dictionaries-${environment}.firebaseio.com`
+    databaseURL: `https://talking-dictionaries-${environment}.firebaseio.com`,
+    storageBucket: `talking-dictionaries-${environment}.appspot.com`,
 });
 
 export const db = admin.firestore();

@@ -5,7 +5,7 @@ const dataFileFormats = ['csv', 'json', 'xlsx'];
 const imageFileFormats = ['jpg', 'jpeg', 'gif', 'png'];
 const audioFileFormats = ['mp3', 'wav'];
 
-export const unzipArchive = async (dictionaryId: string) => {
+export const unzipArchive = async (language: string, dictionaryId: string) => {
     let dataFileName = '';
     let audioFileCount = 0;
     let imageFileCount = 0;
@@ -14,12 +14,18 @@ export const unzipArchive = async (dictionaryId: string) => {
     fs.mkdirSync(`dictionary/${dictionaryId}/images/`, { recursive: true });
 
     return await new Promise((resolve, reject): any => {
-        fs.createReadStream(`../../../Users/jacob/OneDrive/Work/TalkingDictionaries/2019 August - data for alpha td replacement/${dictionaryId}/${dictionaryId}_content_full.zip`)
+        fs.createReadStream(`../../../Users/jacob/OneDrive/Work/TalkingDictionaries/2019 August - data for alpha td replacement/${language}/${language}_content_full.zip`)
             .pipe(unzipper.Parse())
             .on('entry', (entry: any) => {
                 if (entry.path && entry.type === 'File') {
                     const fileName = entry.path.split('/').pop();
                     const fileExt = entry.path.split('.').pop();
+
+                    if (fileName.match(/\?/)) { // skip over kera_mundari missing file with ? in name
+                        console.log(`Skipping ${fileName} because of ? which caused it to be missing`);
+                        entry.autodrain();
+                        return;
+                    }
 
                     if (dataFileFormats.includes(fileExt.toLowerCase())) {
                         dataFileName = fileName;
@@ -34,7 +40,6 @@ export const unzipArchive = async (dictionaryId: string) => {
                         console.log('No proper file type found for: ', fileName, ' - autodraining')
                         entry.autodrain();
                     }
-
                 } else { entry.autodrain(); }
             })
             .promise()
