@@ -7,7 +7,7 @@ import { db } from "./config";
 export const mockDictionary = async (dictionaryId: string, glossLanguages: string[]) => {
     const dictionaryDoc: IDictionary = {
         id: `${dictionaryId}`,
-        name: `Local: ${dictionaryId}`,
+        name: `${dictionaryId}`,
         public: true,
         entryCount: 0,
         glossLanguages //: ['en', 'es', 'hi', 'or'],

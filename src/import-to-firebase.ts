@@ -23,7 +23,7 @@ export const importToFirebase = async (data: any[], dictionaryId: string, enviro
             // if (entryCount == 5) { break } // to incrementally test larger and larger imports
             ++entryCount;
 
-            console.log(row);
+            // console.log(row);
             const entry: IEntry = { lx: '', gl: {} };
 
             // Always set lexeme even if blank string
@@ -45,8 +45,8 @@ export const importToFirebase = async (data: any[], dictionaryId: string, enviro
                 entry.xs['vernacular'] = row.usage_example;
             }
 
-            Boolean(row.semantic_ids) && (entry.sd = row.semantic_ids);
-            Boolean(row.ipa) && (entry.ph = row.ipa);
+            Boolean(row.semantic_ids) && (entry.sd = [row.semantic_ids]);
+            Boolean(row.ipa) && (entry.ph = row.ipa.replace(/[[\]]/g, '')); // Strip surrounding brackets if they are present in phonetic value);
             Boolean(row.dialect) && (entry.di = row.dialect);
 
             if (row.pos) {
@@ -69,12 +69,20 @@ export const importToFirebase = async (data: any[], dictionaryId: string, enviro
                 }
             }
 
-            
+
             if (row.audio) {
                 ++audioRefCount;
                 const localFilePath = `dictionary/${dictionaryId}/audio/${row.audio}`;
                 if (fs.existsSync(localFilePath)) {
-                    const storagePath = `${dictionaryId}/audio/local_import/${sanitizeFileName(row.audio)}`;
+                    let storagePath = `${dictionaryId}/audio/local_import/${sanitizeFileName(row.audio)}`;
+
+                    const startCheck = Date.now();
+                    const audioExists = await storage.bucket().file(storagePath).exists();
+                    if (audioExists[0]) {
+                        storagePath = appendDateBeforeExtension(storagePath);
+                        console.log(`${row.lang} had a duplicate image, appending timestamp: ${storagePath}, (${Date.now() - startCheck}ms to check)`)
+                    }
+
                     await storage.bucket().upload(localFilePath, {
                         destination: storagePath,
                     });
@@ -89,12 +97,24 @@ export const importToFirebase = async (data: any[], dictionaryId: string, enviro
                     console.log(`>> Missing audio file for ${entry.lx}: ${row.audio}`)
                 }
             }
-            
+
             if (row.image) {
                 ++imageRefCount;
+                const beginsWithDotUnderscore = /^\._/; // several images in Gta begin with ._ (all corrupted) but have actual images under same name without prefix
+                if (beginsWithDotUnderscore.test(row.image)) { 
+                    row.image = row.image.replace(beginsWithDotUnderscore, '');
+                }
                 const localFilePath = `dictionary/${dictionaryId}/images/${row.image}`;
                 if (fs.existsSync(localFilePath)) {
-                    const storagePath = `${dictionaryId}/images/local_import/${sanitizeFileName(row.audio)}`;
+                    let storagePath = `${dictionaryId}/images/local_import/${sanitizeFileName(row.image)}`;
+
+                    const startCheck = Date.now();
+                    const imageExists = await storage.bucket().file(storagePath).exists();
+                    if (imageExists[0]) {
+                        storagePath = appendDateBeforeExtension(storagePath);
+                        console.log(`${row.lang} had a duplicate image, appending timestamp: ${storagePath}, (${Date.now() - startCheck}ms to check)`)
+                    }
+
                     await storage.bucket().upload(localFilePath, {
                         destination: storagePath,
                     });
@@ -105,7 +125,6 @@ export const importToFirebase = async (data: any[], dictionaryId: string, enviro
                         source: `local_import`,
                         ts: timestamp,
                     };
-                    Boolean(row.authority) && (entry.sf.speakerName = row.authority);
                 } else {
                     ++imageMissingCount;
                     console.log(`>> Missing image file for ${entry.lx}: ${row.image}`)
@@ -118,7 +137,7 @@ export const importToFirebase = async (data: any[], dictionaryId: string, enviro
             entry.updatedAt = timestamp;
             entry.updatedBy = uid;
 
-            console.log(entry);
+            // console.log(entry);
             if (batchCount === 200) {
                 console.log('committing batch ending with entry: ', entryCount);
                 await batch.commit();
@@ -143,6 +162,12 @@ export const importToFirebase = async (data: any[], dictionaryId: string, enviro
  * Santize file name down to basic characters that can be accepted by Google's Serving Url generator
  * Use like this: `${dictionaryId}/audio/import_${importId}/${sanitizeFileName(filePath)}`
  */
-export const sanitizeFileName = (fileName: string): string => {
+const sanitizeFileName = (fileName: string): string => {
     return fileName.replace(/[^a-z0-9\.+]+/gi, '-');
+}
+
+const appendDateBeforeExtension = (fileName: string): string => {
+    const dotIndex = fileName.lastIndexOf('.');
+    if (dotIndex == -1) return fileName + '-' + Date.now();
+    else return fileName.substring(0, dotIndex) + '-' + Date.now() + fileName.substring(dotIndex);
 }

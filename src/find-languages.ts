@@ -6,6 +6,7 @@ import { glossingLanguages } from "./glossing-languages";
 export const findLanguages = (data: any[]) => {
     const uniqueLanguages: string[] = [];
     const unmatchedLanguages: string[] = [];
+    console.log(''); // spacer
 
     for (const row of data) {
         if (row.gloss) {
@@ -26,12 +27,12 @@ export const findLanguages = (data: any[]) => {
         });
         if (matched) {
             console.log('Matched glossing language: ', lang);
-            
         } else {
             console.log('>> Unmatched glossing language: ', lang);
             unmatchedLanguages.push(lang);
         }
     })
+    console.log(''); // spacer
 
     if (unmatchedLanguages.length) {
         throw new Error(`Found unsupported glossing language(s). See log`);

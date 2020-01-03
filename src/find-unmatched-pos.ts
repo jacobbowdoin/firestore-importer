@@ -4,7 +4,7 @@ import { abbreviateTDPartOfSpeech } from "./abbreviate-td-pos";
  * Logs unique parts and throw an error if any unmatched parts found so we know what to fix. Fix as many as we want to, then uncomment Error throwing to allow unmatched POS to be put into the notes field.
  */
 export const findUnmatchedPOS = (data: any[]) => {
-    console.log('Matching Parts of Speech for ', data.length, ' entries');
+    console.log('\n---------------------\nMatching Parts of Speech for ', data.length, ' entries');
     const uniquePOS: string[] = [];
     const repeatedPOS: string[] = [];
     let unmatchedPOS = false;

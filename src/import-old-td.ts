@@ -5,6 +5,7 @@ import { findUnmatchedPOS } from './find-unmatched-pos';
 import { importToFirebase } from './import-to-firebase';
 import { findLanguages } from './find-languages';
 import { mockDictionary } from './mock-dictionary';
+import { deleteDuplicateEntries } from './delete-duplicate-entries';
 
 // wahgi
 const language = process.argv[2];
@@ -17,7 +18,7 @@ const language = process.argv[2];
 // xyzyl - POS? 
 // yokoim - 'proper name = proper noun?
 // olukumi - English (en), Yoruba (yo), and is "ib" "Igbo"?
-// sakapulteko - ?
+// - sakapulteko - ?
 // achi - ?
 // kaqchikel - ?
 // qanjobal - ?
@@ -38,7 +39,7 @@ if (environment === 'dev') {
 }
 
 const util = require('util');
-const logFile = fs.createWriteStream(`logs/import-${dictionaryId}.txt`, { flags: 'w' }); // 'a' to append, 'w' to write over file contents
+const logFile = fs.createWriteStream(`logs/import-${dictionaryId}-${environment}.txt`, { flags: 'w' }); // 'a' to append, 'w' to write over file contents
 const logStdout = process.stdout;
 console.log = function () {
     logFile.write(util.format.apply(null, arguments) + '\n');
@@ -49,19 +50,19 @@ const importOldTalkingDictionary = async () => {
     try {
         console.log(`importing ${dictionaryId}`);
         const dataFileName = await unzipArchive(language, dictionaryId);
+        // const dataFileName = 'gta_export.json'; // remove after done with gta troubleshooting
         let data = await fs.readJSON(`dictionary/${dictionaryId}/data/${dataFileName}`);
         data = JSON.parse(JSON.stringify(data).replace(/&#8217;/g, '\'').replace(/\\u0000/g, '')); // handle old TD apostrophes
         // Use .replace(/\\u0000/g, '') to handle odd null values in first 4 entries of ho
+        data = deleteDuplicateEntries(data);
         findUnmatchedPOS(data);
         // if (true) { return } // Uncomment to prep import POS/Languages
         if (environment === 'dev') {
-            // dictionaryId = dictionaryId + '-' + dateStamp;
             const glossLanguages: string[] = findLanguages(data);
             await mockDictionary(dictionaryId, glossLanguages)
         }
         const importedCount = await importToFirebase(data, dictionaryId, environment);
         console.log(`Finished importing ${importedCount} entries in ${(Date.now() - dateStamp)/1000} seconds`);
-        // console.log({newFormatData}); log entries in importToFirebase
     } catch (err) {
         console.error(err);
     }
