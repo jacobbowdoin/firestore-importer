@@ -74,15 +74,7 @@ export const importToFirebase = async (data: any[], dictionaryId: string, enviro
                 ++audioRefCount;
                 const localFilePath = `dictionary/${dictionaryId}/audio/${row.audio}`;
                 if (fs.existsSync(localFilePath)) {
-                    let storagePath = `${dictionaryId}/audio/local_import/${sanitizeFileName(row.audio)}`;
-
-                    const startCheck = Date.now();
-                    const audioExists = await storage.bucket().file(storagePath).exists();
-                    if (audioExists[0]) {
-                        storagePath = appendDateBeforeExtension(storagePath);
-                        console.log(`${row.lang} had a duplicate image, appending timestamp: ${storagePath}, (${Date.now() - startCheck}ms to check)`)
-                    }
-
+                    const storagePath = appendDateBeforeExtension(`${dictionaryId}/audio/local_import/${sanitizeFileName(row.audio)}`);
                     await storage.bucket().upload(localFilePath, {
                         destination: storagePath,
                     });
@@ -101,20 +93,12 @@ export const importToFirebase = async (data: any[], dictionaryId: string, enviro
             if (row.image) {
                 ++imageRefCount;
                 const beginsWithDotUnderscore = /^\._/; // several images in Gta begin with ._ (all corrupted) but have actual images under same name without prefix
-                if (beginsWithDotUnderscore.test(row.image)) { 
+                if (beginsWithDotUnderscore.test(row.image)) {
                     row.image = row.image.replace(beginsWithDotUnderscore, '');
                 }
                 const localFilePath = `dictionary/${dictionaryId}/images/${row.image}`;
                 if (fs.existsSync(localFilePath)) {
-                    let storagePath = `${dictionaryId}/images/local_import/${sanitizeFileName(row.image)}`;
-
-                    const startCheck = Date.now();
-                    const imageExists = await storage.bucket().file(storagePath).exists();
-                    if (imageExists[0]) {
-                        storagePath = appendDateBeforeExtension(storagePath);
-                        console.log(`${row.lang} had a duplicate image, appending timestamp: ${storagePath}, (${Date.now() - startCheck}ms to check)`)
-                    }
-
+                    const storagePath = appendDateBeforeExtension(`${dictionaryId}/images/local_import/${sanitizeFileName(row.image)}`);
                     await storage.bucket().upload(localFilePath, {
                         destination: storagePath,
                     });
