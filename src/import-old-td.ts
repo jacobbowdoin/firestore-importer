@@ -62,7 +62,7 @@ const importOldTalkingDictionary = async () => {
             await mockDictionary(dictionaryId, glossLanguages)
         }
         const importedCount = await importToFirebase(data, dictionaryId, environment);
-        console.log(`Finished importing ${importedCount} entries in ${(Date.now() - dateStamp)/1000} seconds`);
+        console.log(`Finished importing ${importedCount} entries to ${dictionaryId} in ${(Date.now() - dateStamp)/1000} seconds`);
     } catch (err) {
         console.error(err);
     }

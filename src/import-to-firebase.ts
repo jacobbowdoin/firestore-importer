@@ -102,13 +102,17 @@ export const importToFirebase = async (data: any[], dictionaryId: string, enviro
                     await storage.bucket().upload(localFilePath, {
                         destination: storagePath,
                     });
-                    const url = await getImageServingUrl(storagePath, environment)
-                    entry.pf = {
-                        path: storagePath,
-                        gcs: url,
-                        source: `local_import`,
-                        ts: timestamp,
-                    };
+                    try {
+                        const url = await getImageServingUrl(storagePath, environment)
+                        entry.pf = {
+                            path: storagePath,
+                            gcs: url,
+                            source: `local_import`,
+                            ts: timestamp,
+                        };
+                    } catch(err) {
+                        console.log('!!! Not adding photo to this entry but double-check the files to see if it is just a corrupted jpg or there is actually a problem in the code.')
+                    }
                 } else {
                     ++imageMissingCount;
                     console.log(`>> Missing image file for ${entry.lx}: ${row.image}`)
