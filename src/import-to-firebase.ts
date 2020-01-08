@@ -1,13 +1,12 @@
 import { db, timestamp, storage } from './config';
 import * as fs from 'fs-extra';
 
-// import { getImageServingUrl } from './getImageServingUrl';
 import { abbreviateTDPartOfSpeech } from './abbreviate-td-pos';
 import { IEntry } from './interfaces/entry.interface';
 import { getImageServingUrl } from './getImageServingUrl';
 const uid = 'OTD'; // 'Old Talking Dictionaries
 
-export const importToFirebase = async (data: any[], dictionaryId: string, environment: string) => {
+export const importToFirebase = async (data: any[], dictionaryId: string, environment: string, dryRun: boolean) => {
     try {
         let audioRefCount = 0;
         let audioMissingCount = 0;
@@ -20,7 +19,7 @@ export const importToFirebase = async (data: any[], dictionaryId: string, enviro
         const colRef = db.collection(`dictionaries/${dictionaryId}/words`);
 
         for (const row of data) { // learned from https://lavrton.com/javascript-loops-how-to-handle-async-await-6252dd3c795/
-            // if (entryCount == 5) { break } // to incrementally test larger and larger imports
+            // if (entryCount == 50) { break } // to incrementally test larger and larger imports
             ++entryCount;
 
             // console.log(row);
@@ -75,9 +74,11 @@ export const importToFirebase = async (data: any[], dictionaryId: string, enviro
                 const localFilePath = `dictionary/${dictionaryId}/audio/${row.audio}`;
                 if (fs.existsSync(localFilePath)) {
                     const storagePath = appendDateBeforeExtension(`${dictionaryId}/audio/local_import/${sanitizeFileName(row.audio)}`);
-                    await storage.bucket().upload(localFilePath, {
-                        destination: storagePath,
-                    });
+                    if (!dryRun) {
+                        await storage.bucket().upload(localFilePath, {
+                            destination: storagePath,
+                        });
+                    }
                     entry.sf = {
                         path: storagePath,
                         source: `local_import`,
@@ -86,7 +87,7 @@ export const importToFirebase = async (data: any[], dictionaryId: string, enviro
                     Boolean(row.authority) && (entry.sf.speakerName = row.authority);
                 } else {
                     ++audioMissingCount;
-                    console.log(`>> Missing audio file for ${entry.lx}: ${row.audio}`)
+                    console.log(`>> Missing audio file for ${entry.lx}| ${row.audio}`)
                 }
             }
 
@@ -99,43 +100,48 @@ export const importToFirebase = async (data: any[], dictionaryId: string, enviro
                 const localFilePath = `dictionary/${dictionaryId}/images/${row.image}`;
                 if (fs.existsSync(localFilePath)) {
                     const storagePath = appendDateBeforeExtension(`${dictionaryId}/images/local_import/${sanitizeFileName(row.image)}`);
-                    await storage.bucket().upload(localFilePath, {
-                        destination: storagePath,
-                    });
-                    try {
-                        const url = await getImageServingUrl(storagePath, environment)
-                        entry.pf = {
-                            path: storagePath,
-                            gcs: url,
-                            source: `local_import`,
-                            ts: timestamp,
-                        };
-                    } catch(err) {
-                        console.log('!!! Not adding photo to this entry but double-check the files to see if it is just a corrupted jpg or there is actually a problem in the code.')
+                    if (!dryRun) {
+                        await storage.bucket().upload(localFilePath, {
+                            destination: storagePath,
+                        });
+                        try {
+                            const url = await getImageServingUrl(storagePath, environment)
+                            entry.pf = {
+                                path: storagePath,
+                                gcs: url,
+                                source: `local_import`,
+                            };
+                        } catch (err) {
+                            console.log(`!!! Not adding image ${row.image} to ${entry.lx} as the server had trouble digesting it. Double-check the files to see if it is just a corrupted jpg (as some are) or if the file is good (means there is code/server problem).`)
+                        }
                     }
                 } else {
                     ++imageMissingCount;
-                    console.log(`>> Missing image file for ${entry.lx}: ${row.image}`)
+                    console.log(`>> Missing image file for ${entry.lx}| ${row.image}`)
                 }
             }
 
             // add timestamps and creator metadata
-            entry.createdAt = timestamp;
+            // entry.createdAt = timestamp;
             entry.createdBy = uid;
-            entry.updatedAt = timestamp;
-            entry.updatedBy = uid;
+            // entry.updatedAt = timestamp;
+            // entry.updatedBy = uid;
 
             // console.log(entry);
-            if (batchCount === 200) {
-                console.log('committing batch ending with entry: ', entryCount);
-                await batch.commit();
-                batch = db.batch();
-                batchCount = 0;
+            if (!dryRun) {
+                if (batchCount === 200) {
+                    console.log('Committing batch of entries ending with: ', entryCount);
+                    await batch.commit();
+                    batch = db.batch();
+                    batchCount = 0;
+                }
+                batch.create(colRef.doc(), entry);
+                batchCount++;
             }
-            batch.create(colRef.doc(), entry);
-            batchCount++;
         };
-        await batch.commit();
+        if (!dryRun) {
+            await batch.commit();
+        }
 
         console.log(`Converted ${entryCount} entries, found ${audioRefCount} audio references (${audioMissingCount} were missing), and ${imageRefCount} image references (${imageMissingCount} were missing)`);
 

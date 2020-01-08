@@ -2,7 +2,6 @@
  * Delete completely duplicated entries and log stats for partial duplicates as well as number of duplicate image and audio references.
  */
 export const deleteDuplicateEntries = (data: any[]) => {
-    const start = Date.now();
     const uniqueLexemes: string[] = [];
     const uniqueAudioReferences: string[] = [];
     const uniqueImageReferences: string[] = [];
@@ -43,20 +42,25 @@ export const deleteDuplicateEntries = (data: any[]) => {
                 })
                 if (!uniqueEntry) {
                     duplicateEntries++;
-                    console.log('\nRemoved', entry, 'as it is a duplicate with: ', nextEntry);
+                    console.log('\nRemoved', entry, '\nas it is a complete duplicate with: ', nextEntry);
                     data.splice(i, 1);
                 }
             }
         }
     }
 
-    console.log(`\nLexeme duplicates: ${data.length - uniqueLexemes.length} out of ${data.length} entries`);
-    console.log(`Removed ${duplicateEntries} completely duplicate entries. The other ${data.length - uniqueLexemes.length - duplicateEntries} entries had at least 1 difference and should be manually consolidated later on the site.`);
-    console.log(`Unique audio references: ${uniqueAudioReferences.length}`);
-    console.log(`Duplicate audio references: ${duplicateAudioReferences} < the entries containing these duplicates will be uploaded still if their are differences in the entry data`);
-    console.log(`Unique image references: ${uniqueImageReferences.length}`);
-    console.log(`Duplicate image references: ${duplicateImageReferences}`);
-    console.log(`Time taken to check for duplicates: ${Date.now() - start}ms`);
+    console.log(`\nLexeme duplicates: ${data.length - uniqueLexemes.length} duplicates out of ${data.length} entries`);
+    console.log(` Removed ${duplicateEntries} completely duplicate entries. The other ${data.length - uniqueLexemes.length - duplicateEntries} lexeme duplicates had at least 1 difference in the entry data and should be manually consolidated later on the site.`); // math will be wrong for dictionaries who have entries with no lexeme
+    
+    console.log(` Unique audio references: ${uniqueAudioReferences.length} < would be great if this matched the audioFileCount above`);
+    if (duplicateAudioReferences) {
+        console.log(` Duplicate audio references: ${duplicateAudioReferences} < each entry that has a duplicate audio reference (meaning another entry also points to the same audio file in the old Talking Dictionaries) will upload its own unique renamed audio file so that none of the entries have intertwined media that other entries depend on. This will allow us to clean up duplicate entries and their associated media with ease without worrying about deleting media that other entries depend on.`);
+    }
+
+    console.log(` Unique image references: ${uniqueImageReferences.length} < would be great if this matched the imageFileCount above`);
+    if (duplicateImageReferences) {
+        console.log(` Duplicate image references: ${duplicateImageReferences} < same story here as with duplicate audio references`);
+    }
     return data;
 }
 

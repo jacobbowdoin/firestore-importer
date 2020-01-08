@@ -44,7 +44,7 @@ export const unzipArchive = async (language: string, dictionaryId: string) => {
             })
             .promise()
             .then(() => {
-                console.log({ audioFileCount }, { imageFileCount });
+                console.log({audioFileCount}, {imageFileCount}, `<< number of files found in zip archive`);
                 resolve(dataFileName)
             }, (e: Error) => reject(e));
     });

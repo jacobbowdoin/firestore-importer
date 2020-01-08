@@ -39,8 +39,7 @@ export const findUnmatchedPOS = (data: any[]) => {
     })
 
     if (unmatchedPOS) {
-        console.log('Not all POS found matches so they will be saved as is.')
-        // Comment after fixing as many as reasonable to allow unmatched POS to be put into the POS field as is.
+        console.log('Not all POS found matches so they will be saved as is (simple strings of text w/o abbreviations or translations).')
         // throw new Error(`No abbreviation found for some POS. See log.`);
     }
 }

@@ -61,7 +61,7 @@ export const partsOfSpeech: IPartOfSpeech[] = [
     { enAbbrev: 'ap', enName: 'adjective phrase', esAbbrev: '', esName: 'frase adjetiva', tdAlternates: ['frase adjetival', 'adjectival phrase'] },
     { enAbbrev: 'adv.p', enName: 'adverb phrase', esAbbrev: '', esName: 'frase adverbial', },
     { enAbbrev: 'pl.pro', enName: 'plural pronoun', esAbbrev: 'pro.pl', esName: 'pronombre plural', },
-    { enAbbrev: 'q', enName: 'question marker', esAbbrev: 'q', esName: 'marcador de preguntas', tdAlternates: ['question word', 'interrogative particle'] }, // 'question word found in old Gta TD  
+    { enAbbrev: 'q', enName: 'question marker', esAbbrev: 'q', esName: 'marcador de preguntas', tdAlternates: ['question word', 'interrogative particle', 'interrogative'] }, 
     { enAbbrev: 'ger', enName: 'gerund', esAbbrev: 'ger', esName: 'gerundio', },
     { enAbbrev: 'art', enName: 'article', esAbbrev: 'art', esName: 'artículo', },
     { enAbbrev: 'post', enName: 'post-position', esAbbrev: 'post', esName: 'posición posterior', },
