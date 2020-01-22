@@ -46,11 +46,13 @@ export const deleteDuplicateEntries = (data: any[]) => {
                     data.splice(i, 1);
                 }
             }
+        } else {
+            console.log('\nNo lang field found for: ', entry.oid);
         }
     }
 
     console.log(`\nLexeme duplicates: ${data.length - uniqueLexemes.length} duplicates out of ${data.length} entries`);
-    console.log(` Removed ${duplicateEntries} completely duplicate entries. The other ${data.length - uniqueLexemes.length - duplicateEntries} lexeme duplicates had at least 1 difference in the entry data and should be manually consolidated later on the site.`); // math will be wrong for dictionaries who have entries with no lexeme
+    console.log(` Removed ${duplicateEntries} completely duplicate entries. The other ${data.length - uniqueLexemes.length - duplicateEntries} lexeme duplicates had at least 1 difference in the entry data and should be manually consolidated later on the site.`); // math will be wrong for dictionaries who have entries with no lexeme (lang field)
     
     console.log(` Unique audio references: ${uniqueAudioReferences.length} < would be great if this matched the audioFileCount above`);
     if (duplicateAudioReferences) {

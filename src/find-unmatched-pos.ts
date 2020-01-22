@@ -7,7 +7,7 @@ export const findUnmatchedPOS = (data: any[]) => {
     console.log('\n---------------------\nMatching Parts of Speech for ', data.length, ' entries');
     const uniquePOS: string[] = [];
     const repeatedPOS: string[] = [];
-    let unmatchedPOS = false;
+    const unmatchedPOS: string[] = [];
 
     for (const entry of data) {
         if (entry.pos) {
@@ -25,7 +25,7 @@ export const findUnmatchedPOS = (data: any[]) => {
         } else {
             // console.log(`>> Unmatched Unique POS\n|${pos}|`);
             console.log(`${pos}`);
-            unmatchedPOS = true;
+            unmatchedPOS.push(pos);
         }
     })
 
@@ -38,8 +38,9 @@ export const findUnmatchedPOS = (data: any[]) => {
         }
     })
 
-    if (unmatchedPOS) {
+    if (unmatchedPOS.length) {
         console.log('Not all POS found matches so they will be saved as is (simple strings of text w/o abbreviations or translations).')
         // throw new Error(`No abbreviation found for some POS. See log.`);
     }
+    return unmatchedPOS;
 }

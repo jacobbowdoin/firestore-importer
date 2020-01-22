@@ -5,7 +5,7 @@ import { findUnmatchedPOS } from './find-unmatched-pos';
 import { importToFirebase } from './import-to-firebase';
 import { findLanguages } from './find-languages';
 import { mockDictionary } from './mock-dictionary';
-import { deleteDuplicateEntries } from './delete-duplicate-entries';
+// import { deleteDuplicateEntries } from './delete-duplicate-entries';
 import { cleanUpData } from './clean-up-data';
 
 // const language = process.argv[2];
@@ -38,6 +38,8 @@ const iterateThroughDictionaries = async () => {
         'korku',
     ]
 
+    let allUnmatchedPOS = new Set<string>();
+
     for (const language of languages) {
         let dictionaryId = language;
         const dateStamp = Date.now();
@@ -52,8 +54,12 @@ const iterateThroughDictionaries = async () => {
             logFile.write(util.format.apply(null, arguments) + '\n');
             logStdout.write(util.format.apply(null, arguments) + '\n');
         }
-        await importOldTalkingDictionary(dictionaryId, language, dateStamp, dryRun);
+        const unmatchedPOS = await importOldTalkingDictionary(dictionaryId, language, dateStamp, dryRun);
+        if (unmatchedPOS) {
+            unmatchedPOS.forEach(pos => allUnmatchedPOS.add(pos));
+        }
     };
+    allUnmatchedPOS.forEach(pos => console.log(pos));
 }
 
 
@@ -64,8 +70,8 @@ const importOldTalkingDictionary = async (dictionaryId: string, language: string
         const dataFileName = await unzipArchive(language, dictionaryId);
         let data = await fs.readJSON(`dictionary/${dictionaryId}/data/${dataFileName}`);
         data = cleanUpData(data);
-        data = deleteDuplicateEntries(data);
-        findUnmatchedPOS(data);
+        // data = deleteDuplicateEntries(data);
+        return findUnmatchedPOS(data);
         if (environment === 'dev') {
             const glossLanguages: string[] = findLanguages(data);
             if (!dryRun) {
@@ -74,7 +80,7 @@ const importOldTalkingDictionary = async (dictionaryId: string, language: string
         }
         const importedCount = await importToFirebase(data, dictionaryId, environment, dryRun);
         console.log(`Finished importing ${importedCount} entries to ${environment}/${language} in ${(Date.now() - dateStamp) / 1000} seconds`);
-        return true;
+        // return true;
     } catch (err) {
         console.error(err);
         throw new Error(err);
