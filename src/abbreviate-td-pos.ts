@@ -20,7 +20,7 @@ export const abbreviateTDPartOfSpeech = (input: string): IMatchResult => {
         .replace(/[.]$/, '') // removes word-final periods
         .replace(/:/g, ''); // removes random colons in old TD data
     const matchingPOS = partsOfSpeech.find(part => { //TODO, possibly more efficient just to return enAbbrev and not whole part object
-        return (part.enName === sanitizedInput) || (part.esName === sanitizedInput) || (part.enAbbrev === sanitizedInput) || (part.tdAlternates && part.tdAlternates.includes(sanitizedInput));
+        return (part.enName === sanitizedInput) || (part.esName === sanitizedInput) || (part.enAbbrev === sanitizedInput) || (part.esAbbrev === sanitizedInput) || (part.tdAlternates && part.tdAlternates.includes(sanitizedInput));
     })
     const result: IMatchResult = {}
     if (matchingPOS) {
